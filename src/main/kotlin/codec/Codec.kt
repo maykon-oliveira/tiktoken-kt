@@ -53,62 +53,67 @@ class Codec(
     }
 
     private fun bpe(piece: ByteArray): Pair<Array<Int>, Array<String>> {
-        var parts = Array(piece.size + 1) { Part(it, Int.MAX_VALUE) }
+        var parts = Array(piece.size + 1) { arrayOf(it, Int.MAX_VALUE) }
 
         val getRank = fun(index: Int, skip: Int): Int {
             if (index + skip + 2 < parts.size) {
-                val start = parts[index].offset
-                val end = parts[index + skip + 2].offset
-
-                val rank = vocabulary[String(piece.slice(start until end).toByteArray())]
-
-                if (rank != null) {
-                    return rank
-                }
+                val part = piece.sliceArray(parts[index][0] until parts[index + skip + 2][0])
+                return vocabulary.getOrDefault(String(part), -1)
             }
 
-            return Int.MAX_VALUE
+            return -1
         }
 
         for (i in 0..parts.size - 2) {
-            parts[i].rank = getRank(i, 0)
+            val rank = getRank(i, 0)
+
+            if (rank >= 0) {
+                parts[i][1] = rank
+            }
         }
 
-        while (true) {
-            if (parts.size == 1) {
-                break
-            }
-
-            var minRank = Int.MIN_VALUE
-            var minIndex = 0
+        while (parts.size > 1) {
+            var minRank = Int.MAX_VALUE
+            var minIndex = -1
 
             for (i in parts.indices) {
-                val p = parts[i]
-
-                if (p.rank < minRank) {
-                    minRank = p.rank
+                if (parts[i][1] < minRank) {
+                    minRank = parts[i][1]
                     minIndex = i
                 }
             }
 
-            if (minRank == Int.MAX_VALUE) {
+            if (minRank < Int.MAX_VALUE) {
+                val i = minIndex
+                val rank = getRank(i, 1)
+
+                if (rank >= 0) {
+                    parts[i][1] = rank
+                } else {
+                    parts[i][1] = Int.MAX_VALUE
+                }
+
+                if (i > 0) {
+                    val rank1 = getRank(i - 1, 1)
+
+                    if (rank1 >= 0) {
+                        parts[i - 1][1] = rank1
+                    } else {
+                        parts[i - 1][1] = Int.MAX_VALUE
+                    }
+                }
+
+                parts = parts.sliceArray(0 until i + 1) + parts.slice(i + 2 until parts.size)
+            } else {
                 break
             }
-
-            parts[minIndex].rank = getRank(minIndex, 1)
-
-            if (minIndex > 0) {
-                parts[minIndex - 1].rank = getRank(minIndex - 1, 1)
-            }
-
-            parts = (parts.slice(0 until minIndex + 1) + parts.slice(minIndex + 2 until parts.size)).toTypedArray()
         }
 
         val ids = Array(parts.size - 1) { it }
         val tokens = Array(parts.size - 1) { it.toString() }
 
         for (i in ids.indices) {
-            val token = String(piece.slice(parts[i].offset until parts[i + 1].offset).toByteArray())
+            val token = String(piece.sliceArray(parts[i][0] until parts[i + 1][0]))
             tokens[i] = token
             ids[i] = vocabulary[token]!!
         }

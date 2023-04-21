@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 internal class TokenizerTest {
 
     @TestFactory
-    fun testCl100kEncoding() = listOf(
+    fun `test cl100kbase encoding`() = listOf(
         "hello world" to listOf(15339, 1917),
         "hello  world" to listOf(15339, 220, 1917),
         "hello   world" to listOf(15339, 256, 1917),
@@ -28,7 +28,37 @@ internal class TokenizerTest {
         ),
     ).map { (input, expected) ->
         DynamicTest.dynamicTest("Encoding \"$input\" should output $expected") {
-            val codec = Tokenizer.get(Encoding.Cl100kBase)
+            val codec = Tokenizer.get(Encoding.CL100KBASE)
+            val pair = codec.encode(input)
+            assertEquals(expected, pair.first)
+        }
+    }
+
+    @TestFactory
+    fun `test r50kbase encoding`() = listOf(
+        "hello world" to listOf(31373, 995),
+        "hello  world" to listOf(31373, 220, 995),
+        "hello   world" to listOf(31373, 220, 220, 995),
+        "supercalifragilistic" to listOf(16668, 9948, 361, 22562, 346, 2569),
+        "We know what we are, but know not what we may be." to listOf(
+            1135,
+            760,
+            644,
+            356,
+            389,
+            11,
+            475,
+            760,
+            407,
+            644,
+            356,
+            743,
+            307,
+            13
+        ),
+    ).map { (input, expected) ->
+        DynamicTest.dynamicTest("Encoding \"$input\" should output $expected") {
+            val codec = Tokenizer.get(Encoding.R50KBASE)
             val pair = codec.encode(input)
             assertEquals(expected, pair.first)
         }
